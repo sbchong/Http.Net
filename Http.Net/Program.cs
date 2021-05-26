@@ -14,7 +14,7 @@ namespace Http.Net
         static void Main(string[] args)
         {
             IPAddress iPAddress = IPAddress.Parse("0.0.0.0");
-            int port = 80;
+            int port = 443;
             var ipe = new IPEndPoint(iPAddress, port);
             var listenner = new TcpListener(ipe);
 
