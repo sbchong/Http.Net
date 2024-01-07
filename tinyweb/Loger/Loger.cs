@@ -23,6 +23,7 @@ public class Loger
             //Console.ForegroundColor = ConsoleColor.White;
             Console.WriteLine($"{levelStr} : {logEvent.Message}");
             //Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.White;
             isBusy = false;
         }
         else

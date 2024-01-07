@@ -22,60 +22,58 @@ public class WebApplication
 
 
         Log.LogInformation($"HTTP服务器启动成功，监听：http://{ipe}");
+        int count = 0;
         while (true)
         {
-            var client = Listener.AcceptTcpClient();
+            Log.LogInformation($"当前处理请求数量：{count}");
+            var client = await Listener.AcceptTcpClientAsync();
 
             if (client.Connected)
             {
-                Task.Run(async () =>
+                count++;
+                Guid requestId = Guid.NewGuid();
+                DateTime startTime = DateTime.Now;
+                Log.LogInformation($"收到客户端请求：{requestId}");
+                string receiveMsg = string.Empty;
+                byte[] receiveBytes = new byte[client.ReceiveBufferSize];
+                int numberOfBytesRead = 0;
+                NetworkStream rec = client.GetStream();
+
+                if (rec.CanRead)
                 {
-                    Guid requestId = Guid.NewGuid();
-                    DateTime startTime = DateTime.Now;
-                    Log.LogInformation($"收到客户端请求：{requestId}");
-                    string receiveMsg = string.Empty;
-                    byte[] receiveBytes = new byte[client.ReceiveBufferSize];
-                    int numberOfBytesRead = 0;
-                    NetworkStream rec = client.GetStream();
-
-                    if (rec.CanRead)
+                    do
                     {
-                        do
-                        {
-                            numberOfBytesRead = rec.Read(receiveBytes, 0, client.ReceiveBufferSize);
-                            receiveMsg += Encoding.UTF8.GetString(receiveBytes, 0, numberOfBytesRead);
-                        }
-                        while (rec.DataAvailable);
+                        numberOfBytesRead = rec.Read(receiveBytes, 0, client.ReceiveBufferSize);
+                        receiveMsg += Encoding.UTF8.GetString(receiveBytes, 0, numberOfBytesRead);
                     }
+                    while (rec.DataAvailable);
+                }
 
-                    //Console.WriteLine(receiveMsg);
+                if (string.IsNullOrEmpty(receiveMsg))
+                {
+                    return;
+                }
+                var request = receiveMsg.Split("\r\n");
+                var info = request[0].Split(" ");
+                var method = info[0];
+                var route = info[1];
 
-                    if (string.IsNullOrEmpty(receiveMsg))
+                if (method == "GET")
+                {
+
+                    NetworkStream send = client.GetStream();
+                    if (send.CanWrite)
                     {
-                        return;
+                        //await Task.Delay(2000);
+                        string header = $"HTTP/1.1 200 OK\r\nDate: {DateTime.UtcNow.ToString("r")}\r\nServer:Http.Net\r\n\r\n";
+                        string body = "OK";
+                        byte[] msgByte = Encoding.UTF8.GetBytes(header).Concat(Encoding.UTF8.GetBytes(body)).ToArray();
+                        send.Write(msgByte, 0, msgByte.Length);
+                        client.Close();
+
+                        Log.LogInformation($"完成请求{requestId}    {route}    200    {(DateTime.Now - startTime).TotalMilliseconds}ms");
                     }
-                    var request = receiveMsg.Split("\r\n");
-                    var info = request[0].Split(" ");
-                    var method = info[0];
-                    var route = info[1];
-
-                    if (method == "GET")
-                    {
-
-                        NetworkStream send = client.GetStream();
-                        if (send.CanWrite)
-                        {
-                            //await Task.Delay(2000);
-                            string header = $"HTTP/1.1 200 OK\r\nDate: {DateTime.UtcNow.ToString("r")}\r\nServer:Http.Net\r\n\r\n";
-                            string body = "OK";
-                            byte[] msgByte = Encoding.UTF8.GetBytes(header).Concat(Encoding.UTF8.GetBytes(body)).ToArray();
-                            send.Write(msgByte, 0, msgByte.Length);
-                            client.Close();
-
-                            Log.LogInformation($"完成请求{requestId}    {route}    200    {(DateTime.Now - startTime).TotalMilliseconds}ms");
-                        }
-                    }
-                });
+                }
             }
         }
     }
