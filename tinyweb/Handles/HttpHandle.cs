@@ -2,10 +2,16 @@ namespace tinyweb.Handles;
 
 public class HttpHandle
 {
-    private TcpClient _tcpClient;
+    private readonly TcpClient _tcpClient;
+    private string _originRequestMessage;
+    public TcpClient TcpClient => _tcpClient;
+
+    public NetworkStream Stream => _tcpClient.GetStream();
 
     public Guid Id { get; set; }
-    public TcpClient TcpClient => _tcpClient;
+
+    public HttpMethod Method { get; set; }
+    public string Route { get; set; }
 
 
     public HttpHandle(TcpClient tcpClient)
@@ -19,54 +25,69 @@ public class HttpHandle
         Log.LogInformation($"收到客户端请求：{Id}");
 
 
-        string requestMessage = await ResolveRequest();
-        if (string.IsNullOrWhiteSpace(requestMessage))
+        if (!await ResolveRequest())
         {
-            Log.LogInformation($"无效的客户端请求");
-            _tcpClient.Close();
             return;
         }
 
 
-        var request = requestMessage.Split("\r\n");
-        var info = request[0].Split(" ");
-        var method = info[0];
-        var route = info[1];
-
-        if (method == "GET")
+        if (Method == HttpMethod.GET)
         {
-
-            NetworkStream send = _tcpClient.GetStream();
-            if (send.CanWrite)
+            if (Stream.CanWrite)
             {
                 //await Task.Delay(2000);
                 string header = $"HTTP/1.1 200 OK\r\nDate: {DateTime.UtcNow.ToString("r")}\r\nServer:Http.Net\r\n\r\n";
                 string body = "OK";
                 byte[] msgByte = Encoding.UTF8.GetBytes(header).Concat(Encoding.UTF8.GetBytes(body)).ToArray();
-                send.Write(msgByte, 0, msgByte.Length);
+                Stream.Write(msgByte, 0, msgByte.Length);
                 _tcpClient.Close();
 
-                Log.LogInformation($"完成请求{Id}    {route}    200    {(DateTime.Now - startTime).TotalMilliseconds}ms");
+                Log.LogInformation($"完成请求{Id}    {Route}    200    {(DateTime.Now - startTime).TotalMilliseconds}ms");
             }
         }
     }
 
-    public async Task<string> ResolveRequest()
+    private async Task<bool> ResolveRequest()
     {
-        string receiveMsg = string.Empty;
+        string requestMessage = string.Empty;
         byte[] receiveBytes = new byte[_tcpClient.ReceiveBufferSize];
         int numberOfBytesRead = 0;
-        NetworkStream rec = _tcpClient.GetStream();
-        if (rec.CanRead)
+
+        if (Stream.CanRead)
         {
             do
             {
-                numberOfBytesRead = await rec.ReadAsync(receiveBytes, 0, _tcpClient.ReceiveBufferSize);
-                receiveMsg += Encoding.UTF8.GetString(receiveBytes, 0, numberOfBytesRead);
+                numberOfBytesRead = await Stream.ReadAsync(receiveBytes, 0, _tcpClient.ReceiveBufferSize);
+                requestMessage += Encoding.UTF8.GetString(receiveBytes, 0, numberOfBytesRead);
             }
-            while (rec.DataAvailable);
+            while (Stream.DataAvailable);
+        }
+        if (string.IsNullOrWhiteSpace(requestMessage))
+        {
+            Log.LogInformation($"无效的客户端请求");
+            _tcpClient.Close();
+            return false;
         }
 
-        return receiveMsg;
+        _originRequestMessage = requestMessage;
+        var request = requestMessage.Split("\r\n");
+        var info = request[0].Split(" ");
+        ResolveMethod(info[0]);
+        Route = info[1];
+        return true;
+    }
+
+    private void ResolveMethod(string methodName)
+    {
+        Method = methodName.ToUpper() switch
+        {
+            "GET" => HttpMethod.GET,
+            "POST" => HttpMethod.POST,
+            "PUT" => HttpMethod.PUT,
+            "DELETE" => HttpMethod.DELETE,
+            "HEAD" => HttpMethod.HEAD,
+            "OPTION" => HttpMethod.OPTION,
+            _ => HttpMethod.OPTION,
+        };
     }
 }
