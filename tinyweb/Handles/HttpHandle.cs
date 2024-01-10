@@ -13,10 +13,13 @@ public class HttpHandle
     public HttpMethod Method { get; set; }
     public string Route { get; set; }
 
+    public Dictionary<string, string> Headers { get; set; }
+
 
     public HttpHandle(TcpClient tcpClient)
     {
         Id = Guid.NewGuid();
+        Headers = new Dictionary<string, string>();
         _tcpClient = tcpClient;
     }
     public async Task Handle()
@@ -70,10 +73,24 @@ public class HttpHandle
         }
 
         _originRequestMessage = requestMessage;
-        var request = requestMessage.Split("\r\n");
+        Log.LogInformation(_originRequestMessage);
+        var request = requestMessage.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
         var info = request[0].Split(" ");
+        Log.LogInformation(info[0]);
         ResolveMethod(info[0]);
         Route = info[1];
+
+        for (int i = 1; i < request.Length; i++)
+        {
+            var header = request[i].Split(":", StringSplitOptions.RemoveEmptyEntries);
+            if (header.Length == 2)
+            {
+                var key = header[0].Trim();
+                var value = header[1].Trim();
+                Log.LogInformation($"{key} - {value}");
+                Headers.Add(key, value);
+            }
+        }
         return true;
     }
 

@@ -13,7 +13,7 @@ public class Loger
             var levelStr = logEvent.LogLevel.ToString().ToLower();
             _ = level switch
             {
-                LogLevel.Info => Console.ForegroundColor = ConsoleColor.Green,
+                LogLevel.Info => Console.ForegroundColor = ConsoleColor.Blue,
                 LogLevel.Warn => Console.ForegroundColor = ConsoleColor.Yellow,
                 LogLevel.Error => Console.ForegroundColor = ConsoleColor.Red,
                 _ => Console.ForegroundColor = ConsoleColor.Green,
