@@ -34,20 +34,8 @@ public class HttpHandle
         }
 
 
-        if (Method == HttpMethod.GET)
-        {
-            if (Stream.CanWrite)
-            {
-                //await Task.Delay(2000);
-                string header = $"HTTP/1.1 200 OK\r\nDate: {DateTime.UtcNow.ToString("r")}\r\nServer:Http.Net\r\n\r\n";
-                string body = "OK";
-                byte[] msgByte = Encoding.UTF8.GetBytes(header).Concat(Encoding.UTF8.GetBytes(body)).ToArray();
-                Stream.Write(msgByte, 0, msgByte.Length);
-                _tcpClient.Close();
-
-                Log.LogInformation($"完成请求{Id}    {Route}    200    {(DateTime.Now - startTime).TotalMilliseconds}ms");
-            }
-        }
+        await Response();
+        Log.LogInformation($"完成请求{Id}    {Route}    200    {(DateTime.Now - startTime).TotalMilliseconds}ms");
     }
 
     private async Task<bool> ResolveRequest()
@@ -106,5 +94,21 @@ public class HttpHandle
             "OPTION" => HttpMethod.OPTION,
             _ => HttpMethod.OPTION,
         };
+    }
+
+    private async Task Response()
+    {
+        if (Method == HttpMethod.GET)
+        {
+            if (Stream.CanWrite)
+            {
+                //await Task.Delay(2000);
+                string header = $"HTTP/1.1 200 OK\r\nDate: {DateTime.UtcNow.ToString("r")}\r\nServer:Http.Net\r\n\r\n";
+                string body = "OK";
+                byte[] msgByte = Encoding.UTF8.GetBytes(header).Concat(Encoding.UTF8.GetBytes(body)).ToArray();
+                await Stream.WriteAsync(msgByte, 0, msgByte.Length);
+                _tcpClient.Close();
+            }
+        }
     }
 }
