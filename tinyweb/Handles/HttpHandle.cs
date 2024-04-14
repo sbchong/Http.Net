@@ -6,6 +6,10 @@ public class HttpHandle
 {
     private readonly TcpClient _tcpClient;
     private string _originRequestMessage;
+
+    public Request Request { get; private set; }
+
+
     public TcpClient TcpClient => _tcpClient;
 
     public NetworkStream Stream => _tcpClient.GetStream();
@@ -63,44 +67,15 @@ public class HttpHandle
         }
 
         _originRequestMessage = requestMessage;
-        Log.LogInformation(_originRequestMessage);
-        var request = requestMessage.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
-        var info = request[0].Split(" ");
-        Log.LogInformation(info[0]);
-        ResolveMethod(info[0]);
-        Route = info[1];
-
-        for (int i = 1; i < request.Length; i++)
-        {
-            var header = request[i].Split(":", StringSplitOptions.RemoveEmptyEntries);
-            if (header.Length == 2)
-            {
-                var key = header[0].Trim();
-                var value = header[1].Trim();
-                Log.LogInformation($"{key} - {value}");
-                Headers.Add(key, value);
-            }
-        }
+        Request = new Request(_originRequestMessage);
         return true;
     }
 
-    private void ResolveMethod(string methodName)
-    {
-        Method = methodName.ToUpper() switch
-        {
-            "GET" => HttpMethod.GET,
-            "POST" => HttpMethod.POST,
-            "PUT" => HttpMethod.PUT,
-            "DELETE" => HttpMethod.DELETE,
-            "HEAD" => HttpMethod.HEAD,
-            "OPTION" => HttpMethod.OPTION,
-            _ => HttpMethod.OPTION,
-        };
-    }
+
 
     private async Task Response()
     {
-        if (Method == HttpMethod.GET)
+        if (Request.Method == HttpMethod.GET)
         {
             if (Stream.CanWrite)
             {
@@ -109,7 +84,7 @@ public class HttpHandle
                 string body = "这次请求狠狠地OK，哈哈哈";
                 byte[] msgByte = Encoding.UTF8.GetBytes(header).Concat(Encoding.UTF8.GetBytes(body)).ToArray();
                 await Stream.WriteAsync(msgByte, 0, msgByte.Length);
-                _tcpClient.Close();
+                _tcpClient?.Close();
             }
         }
     }
