@@ -1,4 +1,5 @@
-﻿using tinyweb.Handles;
+﻿using System.Drawing;
+using tinyweb.Handles;
 
 namespace Http.Net.Hosting;
 
@@ -16,6 +17,7 @@ public class WebApplication
 
     public async Task RunAsycn()
     {
+        Colorful.Console.WriteAscii("TinyWEB",ColorTranslator.FromHtml("#FAD6FF"));
         int port = 80;
         var ipe = new IPEndPoint(IPAddress, port);
         Listener = new TcpListener(ipe);

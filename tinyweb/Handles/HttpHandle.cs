@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace tinyweb.Handles;
 
 public class HttpHandle
@@ -24,18 +26,18 @@ public class HttpHandle
     }
     public async Task Handle()
     {
-        DateTime startTime = DateTime.Now;
+        var sw = Stopwatch.StartNew();
         Log.LogInformation($"收到客户端请求：{Id}");
 
 
-        if (!await ResolveRequest())
+        if (await ResolveRequest())
         {
-            return;
+            await Response();
         }
 
 
-        await Response();
-        Log.LogInformation($"完成请求{Id}    {Route}    200    {(DateTime.Now - startTime).TotalMilliseconds}ms");
+        sw.Stop();
+        Log.LogInformation($"完成请求{Id}    {Route}    200    {sw.ElapsedMilliseconds}ms");
     }
 
     private async Task<bool> ResolveRequest()
@@ -104,7 +106,7 @@ public class HttpHandle
             {
                 //await Task.Delay(2000);
                 string header = $"HTTP/1.1 200 OK\r\nDate: {DateTime.UtcNow.ToString("r")}\r\nServer:Http.Net\r\n\r\n";
-                string body = "OK";
+                string body = "这次请求狠狠地OK，哈哈哈";
                 byte[] msgByte = Encoding.UTF8.GetBytes(header).Concat(Encoding.UTF8.GetBytes(body)).ToArray();
                 await Stream.WriteAsync(msgByte, 0, msgByte.Length);
                 _tcpClient.Close();
